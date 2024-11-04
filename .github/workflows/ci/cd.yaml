@@ -1,0 +1,94 @@
+name: dragon-mail
+on:
+  push:
+    branches:
+      - master
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Greet User
+        run: |
+          echo "Welcome"
+
+      - name: Build the Image
+        env:
+          image_name: test-image
+          version: 1.0.0
+          username: dapper01
+        run: |
+          docker build -t $username/$image_name:$version .
+
+      - name: Create app_version.txt
+        run: |
+          echo "Version: $version" > app_version.txt
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: app_version
+          path: app_version.txt
+
+      - name: Log into Docker Hub Account
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Push Docker Image to Docker Hub
+        env:
+          image_name: test-image
+          version: 1.0.0
+          username: dapper01
+        run: |
+          docker push $username/$image_name:$version
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Audit Dependencies
+        run: npm audit --production --fail-on-vulnerabilities
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.39.0_Linux-64bit.deb
+          sudo dpkg -i trivy_0.39.0_Linux-64bit.deb
+
+      - name: Scan Docker Image for Vulnerabilities
+        run: |
+          trivy image --exit-code 1 --severity HIGH,CRITICAL $username/$image_name:$version || true
+
+      - name: Run Tests
+        uses: boneskull/nodejs-production-test-action@v1
+        with:
+          script: test:smoke
+
+  Deploy:
+    name: Deploy Docker Image
+    runs-on: ubuntu-latest
+    needs: Build
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: app_version
+          path: .
+
+      - name: Log into Docker Hub Account
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Pull and Deploy Docker Image
+        env:
+          image_name: test-image
+          version: 1.0.0
+          username: dapper01
+        run: |
+          docker pull $username/$image_name:$version
+          docker run -d -p 808:80 $username/$image_name:$version

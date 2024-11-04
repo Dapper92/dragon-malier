@@ -66,9 +66,10 @@ jobs:
           trivy image --exit-code 1 --severity HIGH,CRITICAL $username/$image_name:$version || true
 
       - name: Run Tests
-        uses: boneskull/nodejs-production-test-action@v1
-        with:
-          script: test:smoke
+        run: |
+          echo "Running smoke tests..."
+          npm run test:smoke || { echo 'Smoke tests failed'; exit 1; }
+
 
   Deploy:
     name: Deploy Docker Image

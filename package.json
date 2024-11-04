@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test:smoke": "echo 'Running smoke tests...' && exit 0"
-     "start": "nodemon dragon.js"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon dragon.js"
   },
   "keywords": [],
   "author": "",
